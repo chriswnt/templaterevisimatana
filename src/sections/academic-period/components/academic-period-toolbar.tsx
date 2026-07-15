@@ -22,7 +22,7 @@ export function AcademicPeriodToolbar({
   onCreateClick,
   availableYears,
 }: AcademicPeriodToolbarProps) {
-  const isAdmin = role === 'Admin Akademik';
+  const canManage = role === 'Admin Akademik' || role === 'Staf Admisi';
 
   const handleReset = () => {
     onFilterChange('search', '');
@@ -151,7 +151,7 @@ export function AcademicPeriodToolbar({
 
       <Box sx={{ flexGrow: 1 }} />
 
-      {isAdmin && (
+      {canManage && (
         <Button
           variant="contained"
           color="primary"

@@ -22,6 +22,7 @@ type AcademicPeriodFormProps = {
   isLoading: boolean;
   isLocked: boolean;
   readOnly?: boolean;
+  isSuperAdmin?: boolean;
 };
 
 const defaultFormData: AcademicPeriodFormData = {
@@ -48,6 +49,7 @@ export function AcademicPeriodForm({
   isLoading,
   isLocked,
   readOnly,
+  isSuperAdmin = false,
 }: AcademicPeriodFormProps) {
   const [form, setForm] = useState<AcademicPeriodFormData>(defaultFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -98,7 +100,7 @@ export function AcademicPeriodForm({
     }
   };
 
-  if (isLocked) {
+  if (isLocked && !isSuperAdmin) {
     return (
       <NotificationBanner
         type="warning"
@@ -112,6 +114,14 @@ export function AcademicPeriodForm({
       <Typography variant="h6" sx={{ mb: 3 }}>
         {isEdit ? 'Edit Periode Akademik' : 'Tambah Periode Akademik Baru'}
       </Typography>
+
+      {isLocked && isSuperAdmin && (
+        <NotificationBanner
+          type="warning"
+          message="Periode ini terkunci. Anda sebagai Admin Akademik dapat mengedit dan membuka kuncinya."
+          sx={{ mb: 2 }}
+        />
+      )}
 
       {Object.keys(errors).length > 0 && (
         <NotificationBanner
@@ -270,6 +280,19 @@ export function AcademicPeriodForm({
             label="Status Aktif"
           />
         </Grid>
+        {isSuperAdmin && (
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={form.is_locked}
+                  onChange={(e) => handleChange('is_locked', e.target.checked)}
+                />
+              }
+              label="Terkunci"
+            />
+          </Grid>
+        )}
       </Grid>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>

@@ -92,7 +92,7 @@ export function ReportingView() {
   const handlePageChange = useCallback((newPage: number) => setPage(newPage), []);
   const handleRowsPerPageChange = useCallback((rpp: number) => { setRowsPerPage(rpp); setPage(0); }, []);
 
-  const canExport = currentRole === 'Admin Akademik' || currentRole === 'Dosen';
+  const canExport = currentRole === 'Admin Akademik' || currentRole === 'Staf Admisi' || currentRole === 'Dosen';
 
   const summary = useMemo(() => ({
     totalPeriods: apiData.length,

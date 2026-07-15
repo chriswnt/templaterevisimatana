@@ -49,7 +49,8 @@ export function AcademicPeriodView() {
   const [deleting, setDeleting] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; item: AcademicPeriod } | null>(null);
 
-  const isAdmin = currentRole === 'Admin Akademik';
+  const isSuperAdmin = currentRole === 'Admin Akademik';
+  const canManage = currentRole === 'Admin Akademik' || currentRole === 'Staf Admisi';
 
   const handleDeleteSingle = useCallback(async () => {
     if (!deleteTarget) return;
@@ -74,6 +75,20 @@ export function AcademicPeriodView() {
     setDeleting(false);
     setDeleteManyIds([]);
   }, [deleteManyIds, remove]);
+
+  const handleToggleLock = useCallback(
+    async (item: AcademicPeriod) => {
+      try {
+        await update(item.id, {
+          ...item,
+          is_locked: !item.is_locked,
+        });
+      } catch {
+        /* handled in hook */
+      }
+    },
+    [update]
+  );
 
   const availableYears = useMemo(() => {
     const years = [...new Set(data.map((d) => d.tahun_ajaran))];
@@ -112,13 +127,11 @@ export function AcademicPeriodView() {
 
   const handleCodeClick = useCallback(
     (item: AcademicPeriod) => {
-      if (isAdmin) {
-        setMenuAnchor({ el: document.activeElement as HTMLElement, item });
-      } else {
+      if (!canManage) {
         handleDetailClick(item);
       }
     },
-    [isAdmin, handleDetailClick]
+    [canManage, handleDetailClick]
   );
 
   const handleFormSubmit = useCallback(
@@ -185,24 +198,31 @@ export function AcademicPeriodView() {
         label: 'Kode',
         width: 140,
         sortable: true,
-        renderCell: isAdmin
-          ? (row: AcademicPeriod) => (
-              <Box
-                component="span"
-                onClick={(e: React.MouseEvent) => {
-                  setMenuAnchor({ el: e.currentTarget as HTMLElement, item: row });
-                }}
-                sx={{
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  color: '#2563EB',
-                  transition: 'color 0.15s ease',
-                  '&:hover': { color: '#1D4ED8', textDecoration: 'underline' },
-                }}
-              >
-                {row.kode_periode}
-              </Box>
-            )
+        renderCell: canManage
+          ? (row: AcademicPeriod) => {
+              const canAccess = isSuperAdmin || !row.is_locked;
+              return (
+                <Box
+                  component="span"
+                  onClick={(e: React.MouseEvent) => {
+                    if (canAccess) {
+                      setMenuAnchor({ el: e.currentTarget as HTMLElement, item: row });
+                    } else {
+                      handleDetailClick(row);
+                    }
+                  }}
+                  sx={{
+                    cursor: canAccess ? 'pointer' : 'default',
+                    fontWeight: 600,
+                    color: canAccess ? '#2563EB' : 'text.secondary',
+                    transition: 'color 0.15s ease',
+                    '&:hover': canAccess ? { color: '#1D4ED8', textDecoration: 'underline' } : undefined,
+                  }}
+                >
+                  {row.kode_periode}
+                </Box>
+              );
+            }
           : undefined,
       },
       { id: 'nama_periode', label: 'Nama Periode', sortable: true },
@@ -224,7 +244,7 @@ export function AcademicPeriodView() {
         renderCell: (row) => `${fDate(row.tanggal_awal_kuliah)} - ${fDate(row.tanggal_akhir_kuliah)}`,
       },
     ],
-    [isAdmin]
+    [canManage, isSuperAdmin, handleDetailClick]
   );
 
   if (mode === 'form') {
@@ -250,6 +270,7 @@ export function AcademicPeriodView() {
           isLoading={isLoading}
           isLocked={editingItem?.is_locked ?? false}
           readOnly={detailMode}
+          isSuperAdmin={isSuperAdmin}
         />
       </DashboardContent>
     );
@@ -284,15 +305,15 @@ export function AcademicPeriodView() {
         onRowsPerPageChange={(rpp) => { setRowsPerPage(rpp); setPage(0); }}
         sortConfig={sortConfig}
         onSortChange={handleSortChange}
-        primaryKey={isAdmin ? undefined : 'kode_periode'}
-        onPrimaryClick={isAdmin ? undefined : handleCodeClick}
+        primaryKey={canManage ? undefined : 'kode_periode'}
+        onPrimaryClick={canManage ? undefined : handleCodeClick}
         getRowId={(row) => row.id}
         loading={isLoading}
         emptyTitle="Tidak ada data"
         emptyDescription={filters.search ? 'Coba ubah kata kunci pencarian' : 'Belum ada periode akademik.'}
-        selected={isAdmin ? selected : undefined}
-        onSelectAllRows={isAdmin ? setSelected : undefined}
-        onSelectRow={isAdmin ? (id) => {
+        selected={canManage ? selected : undefined}
+        onSelectAllRows={canManage ? setSelected : undefined}
+        onSelectRow={canManage ? (id) => {
           setSelected((prev) =>
             prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
           );
@@ -321,6 +342,17 @@ export function AcademicPeriodView() {
             <ListItemIcon><Iconify icon="solar:pen-bold-duotone" width={18} /></ListItemIcon>
             <ListItemText>Edit</ListItemText>
           </MenuItem>
+          {isSuperAdmin && (
+            <MenuItem onClick={() => { handleToggleLock(menuAnchor.item); setMenuAnchor(null); }}>
+              <ListItemIcon>
+                <Iconify
+                  icon={menuAnchor.item.is_locked ? 'solar:unlock-bold-duotone' : 'solar:lock-bold-duotone'}
+                  width={18}
+                />
+              </ListItemIcon>
+              <ListItemText>{menuAnchor.item.is_locked ? 'Buka Kunci' : 'Kunci'}</ListItemText>
+            </MenuItem>
+          )}
           <MenuItem onClick={() => { setDeleteTarget(menuAnchor.item); setMenuAnchor(null); }}>
             <ListItemIcon><Iconify icon="solar:trash-bin-trash-bold-duotone" width={18} sx={{ color: 'error.main' }} /></ListItemIcon>
             <ListItemText sx={{ color: 'error.main' }}>Hapus</ListItemText>
@@ -328,7 +360,7 @@ export function AcademicPeriodView() {
         </Menu>
       )}
 
-      {isAdmin && selected.length > 0 && (
+      {canManage && selected.length > 0 && (
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
           <Button
             variant="outlined"
